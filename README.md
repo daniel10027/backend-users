@@ -221,5 +221,3 @@ La suite couvre notamment :
 - Validation stricte des entrees (corps de requete, fichiers importes) via `zod`
 - Limitation de la taille des fichiers importes (`MAX_UPLOAD_SIZE_BYTES`)
 - Le mot de passe (meme hache) n'est jamais present dans les reponses de l'API
-#   b a c k e n d - u s e r s  
- 
