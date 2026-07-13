@@ -1,0 +1,36 @@
+// Schema Prisma - Base de donnees SQLite
+// SQLite a ete choisi pour ce test technique car il ne necessite aucune
+// installation de serveur de base de donnees externe : le fichier de base
+// est cree automatiquement au demarrage du conteneur, ce qui simplifie le
+// deploiement et l'evaluation du projet. Le modele reste neanmoins portable
+// vers PostgreSQL ou MySQL en changeant simplement le "provider" ci-dessous.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String
+  birthDate   DateTime
+  city        String
+  country     String
+  avatar      String
+  company     String
+  jobPosition String
+  mobile      String
+  username    String   @unique
+  email       String   @unique
+  password    String
+  role        String   @default("user")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("users")
+}

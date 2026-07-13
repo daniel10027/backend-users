@@ -1,0 +1,165 @@
+name: CI
+
+# Ce workflow s'execute :
+# - sur chaque push vers les branches main et develop
+# - sur chaque pull request ciblant main ou develop
+# Il garantit que le code compile, que les types sont valides,
+# que la suite de tests passe integralement, et que l'image Docker
+# se construit correctement, avant toute fusion sur ces branches.
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-typecheck:
+    name: Lint et verification des types
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recuperer le code source
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Installer les dependances
+        run: npm ci
+
+      - name: Verification des types TypeScript
+        run: npm run lint
+
+  test:
+    name: Tests unitaires et d'integration
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    env:
+      NODE_ENV: test
+      DATABASE_URL: "file:./test.db"
+      JWT_SECRET: "ci-test-secret-key"
+      JWT_EXPIRES_IN: "1h"
+    steps:
+      - name: Recuperer le code source
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Installer les dependances
+        run: npm ci
+
+      - name: Generer le client Prisma
+        run: npx prisma generate
+
+      - name: Lancer la suite de tests
+        run: npm test -- --ci --coverage
+
+      - name: Publier le rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+          retention-days: 7
+
+  build:
+    name: Build TypeScript
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - name: Recuperer le code source
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Installer les dependances
+        run: npm ci
+
+      - name: Generer le client Prisma
+        run: npx prisma generate
+
+      - name: Compiler le projet
+        run: npm run build
+
+      - name: Publier le build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+
+  docker-build:
+    name: Construction de l'image Docker
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    steps:
+      - name: Recuperer le code source
+        uses: actions/checkout@v4
+
+      - name: Construire l'image Docker
+        run: docker build -t backend-users-evaluation:ci .
+
+      - name: Verifier que le conteneur demarre correctement
+        run: |
+          docker run -d --name api-ci \
+            -p 9090:9090 \
+            -e JWT_SECRET=ci-smoke-test-secret \
+            -e DATABASE_URL="file:./data/prod.db" \
+            backend-users-evaluation:ci
+
+          echo "Attente du demarrage du serveur..."
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:9090/health > /dev/null; then
+              echo "Le serveur repond correctement."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Le serveur n'a pas repondu dans le delai imparti."
+          docker logs api-ci
+          exit 1
+
+      - name: Nettoyer le conteneur de test
+        if: always()
+        run: docker rm -f api-ci || true
+
+  status-check:
+    name: Statut global de la CI
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test, build, docker-build]
+    if: always()
+    steps:
+      - name: Verifier que tous les jobs ont reussi
+        run: |
+          if [ "${{ needs.lint-and-typecheck.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.docker-build.result }}" != "success" ]; then
+            echo "Un ou plusieurs jobs ont echoue."
+            exit 1
+          fi
+          echo "Tous les jobs ont reussi. Le code est valide sur cette branche."

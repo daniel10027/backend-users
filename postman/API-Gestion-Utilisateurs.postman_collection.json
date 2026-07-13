@@ -1,0 +1,563 @@
+{
+  "info": {
+    "_postman_id": "b6b2f1a0-2d4a-4e2b-9a3f-4a2b6c9e0d11",
+    "name": "API de Gestion d'Utilisateurs - FFK",
+    "description": "Collection complete de l'API de gestion d'utilisateurs developpee dans le cadre de l'evaluation technique backend FFK. Contient tous les endpoints (generation, import, authentification, profils) avec les formats de requete et les exemples de reponse.\n\nBase URL par defaut : http://localhost:9090\n\nPour utiliser cette collection :\n1. Importer egalement le fichier d'environnement API-Gestion-Utilisateurs.postman_environment.json\n2. Selectionner l'environnement \"API Gestion Utilisateurs - Local\" dans Postman\n3. Executer la requete \"Importer des utilisateurs\" pour creer des comptes en base\n4. Executer la requete \"Authentification\" : le token est automatiquement enregistre dans la variable d'environnement accessToken\n5. Les requetes necessitant une authentification utilisent automatiquement ce token",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "0"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9090",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "generatedUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "generatedPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Sante",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Verifie que le serveur est demarre et repond correctement. Aucune authentification requise."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json; charset=utf-8" }
+              ],
+              "body": "{\n  \"status\": \"ok\",\n  \"uptime\": 123.456\n}"
+            }
+          ]
+        },
+        {
+          "name": "Documentation Swagger (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-docs.json",
+              "host": ["{{baseUrl}}"],
+              "path": ["api-docs.json"]
+            },
+            "description": "Retourne la specification OpenAPI complete au format JSON. La documentation interactive (Swagger UI) est accessible dans un navigateur a l'adresse {{baseUrl}}/api-docs."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints techniques (sante du service, documentation)."
+    },
+    {
+      "name": "Utilisateurs",
+      "item": [
+        {
+          "name": "Generer des utilisateurs fictifs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Enregistre le premier utilisateur genere afin de pouvoir",
+                  "// tester rapidement l'import (endpoint Importer des utilisateurs).",
+                  "pm.test(\"Statut 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Un tableau JSON est retourne\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "    pm.collectionVariables.set(\"lastGeneratedUsersRaw\", pm.response.text());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/generate?count=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "generate"],
+              "query": [
+                {
+                  "key": "count",
+                  "value": "10",
+                  "description": "Nombre d'utilisateurs a generer (entier entre 1 et 1000, obligatoire)"
+                }
+              ]
+            },
+            "description": "Genere N utilisateurs fictifs realistes et declenche le telechargement d'un fichier JSON (en-tete Content-Disposition: attachment).\n\nAuthentification requise : Non\n\nParametres de requete (query params) :\n- count (integer, requis) : nombre d'utilisateurs a generer, entre 1 et 1000\n\nFormat de reponse (200) : tableau JSON d'objets utilisateur au format suivant :\n[{\n  \"firstName\": \"string\",\n  \"lastName\": \"string\",\n  \"birthDate\": \"date ISO 8601\",\n  \"city\": \"string\",\n  \"country\": \"code ISO2\",\n  \"avatar\": \"url\",\n  \"company\": \"string\",\n  \"jobPosition\": \"string\",\n  \"mobile\": \"string\",\n  \"username\": \"string\",\n  \"email\": \"string\",\n  \"password\": \"string (6 a 10 caracteres)\",\n  \"role\": \"admin ou user\"\n}]\n\nErreurs possibles :\n- 400 : parametre count manquant, non numerique, negatif, nul ou superieur a 1000"
+          },
+          "response": [
+            {
+              "name": "200 OK - Fichier JSON genere",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/generate?count=2",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "generate"],
+                  "query": [{ "key": "count", "value": "2" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+                { "key": "Content-Disposition", "value": "attachment; filename=\"users-2.json\"" }
+              ],
+              "body": "[\n  {\n    \"firstName\": \"Awa\",\n    \"lastName\": \"Traore\",\n    \"birthDate\": \"1992-03-14T00:00:00.000Z\",\n    \"city\": \"Bouake\",\n    \"country\": \"CI\",\n    \"avatar\": \"https://avatars.githubusercontent.com/u/91231?v=4\",\n    \"company\": \"Kone et Fils\",\n    \"jobPosition\": \"Ingenieure logiciel\",\n    \"mobile\": \"+225 07 12 34 56 78\",\n    \"username\": \"awa.traore.k93x\",\n    \"email\": \"awa.traore@example.com\",\n    \"password\": \"Xk92mQ1\",\n    \"role\": \"user\"\n  },\n  {\n    \"firstName\": \"Ismael\",\n    \"lastName\": \"Diabate\",\n    \"birthDate\": \"1988-11-02T00:00:00.000Z\",\n    \"city\": \"Yamoussoukro\",\n    \"country\": \"CI\",\n    \"avatar\": \"https://avatars.githubusercontent.com/u/44210?v=4\",\n    \"company\": \"Diabate Consulting\",\n    \"jobPosition\": \"Administrateur systeme\",\n    \"mobile\": \"+225 05 98 76 54 32\",\n    \"username\": \"ismael.diabate.p7q2\",\n    \"email\": \"ismael.diabate@example.com\",\n    \"password\": \"aT4mZq99\",\n    \"role\": \"admin\"\n  }\n]"
+            },
+            {
+              "name": "400 Bad Request - count invalide",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/generate?count=0",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "generate"],
+                  "query": [{ "key": "count", "value": "0" }]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"message\": \"Le parametre 'count' doit etre un entier strictement positif\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Importer des utilisateurs (batch)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Le resume contient total, imported, failed\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('total');",
+                  "    pm.expect(body).to.have.property('imported');",
+                  "    pm.expect(body).to.have.property('failed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/batch",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "batch"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Fichier JSON contenant un tableau d'utilisateurs (meme format que la reponse de l'endpoint Generer des utilisateurs fictifs). Selectionner un fichier .json local, par exemple celui telecharge via la requete precedente."
+                }
+              ]
+            },
+            "description": "Importe en base de donnees une liste d'utilisateurs fournie sous forme de fichier JSON.\n\nAuthentification requise : Non\n\nContent-Type : multipart/form-data\n\nParametres (form-data) :\n- file (fichier, requis) : fichier .json contenant un tableau d'objets utilisateur\n\nComportement :\n- chaque enregistrement est valide individuellement (schema RawUser)\n- les doublons sur email ou username (deja en base, ou dupliques dans le fichier) sont rejetes sans bloquer le reste du traitement\n- les mots de passe sont haches (bcrypt) avant stockage, jamais stockes en clair\n\nFormat de reponse (200) :\n{\n  \"total\": number,\n  \"imported\": number,\n  \"failed\": number,\n  \"errors\": [\n    { \"index\": number, \"identifier\": \"string\", \"reason\": \"string\" }\n  ]\n}\n\nErreurs possibles :\n- 400 : aucun fichier fourni, fichier non JSON, ou contenu JSON qui n'est pas un tableau"
+          },
+          "response": [
+            {
+              "name": "200 OK - Import reussi",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/batch",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "batch"]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [{ "key": "file", "type": "file", "src": [] }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"total\": 10,\n  \"imported\": 8,\n  \"failed\": 2,\n  \"errors\": [\n    {\n      \"index\": 3,\n      \"identifier\": \"awa.traore@example.com\",\n      \"reason\": \"Email ou username deja existant en base de donnees\"\n    },\n    {\n      \"index\": 7,\n      \"identifier\": \"ismael.diabate@example.com\",\n      \"reason\": \"Doublon au sein du fichier importe (email ou username)\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "400 Bad Request - fichier manquant",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/batch",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "batch"]
+                },
+                "body": { "mode": "formdata", "formdata": [] }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"message\": \"Aucun fichier fourni. Le champ multipart attendu est 'file'.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Consulter mon profil (me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Le mot de passe n'est jamais retourne\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.password).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "me"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "description": "Retourne le profil complet de l'utilisateur associe au token JWT envoye.\n\nAuthentification requise : Oui (Bearer token)\nEn-tete : Authorization: Bearer {{accessToken}}\n\nFormat de reponse (200) :\n{\n  \"id\": \"string\",\n  \"firstName\": \"string\",\n  \"lastName\": \"string\",\n  \"birthDate\": \"date ISO 8601\",\n  \"city\": \"string\",\n  \"country\": \"string\",\n  \"avatar\": \"url\",\n  \"company\": \"string\",\n  \"jobPosition\": \"string\",\n  \"mobile\": \"string\",\n  \"username\": \"string\",\n  \"email\": \"string\",\n  \"role\": \"admin ou user\",\n  \"createdAt\": \"date ISO 8601\"\n}\n\nErreurs possibles :\n- 401 : en-tete Authorization manquant, mal forme, ou token invalide/expire"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "me"]
+                },
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }]
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"id\": \"3fa1f1c0-1c9a-4e2f-9b21-2a3e0f6a9b12\",\n  \"firstName\": \"Awa\",\n  \"lastName\": \"Traore\",\n  \"birthDate\": \"1992-03-14T00:00:00.000Z\",\n  \"city\": \"Bouake\",\n  \"country\": \"CI\",\n  \"avatar\": \"https://avatars.githubusercontent.com/u/91231?v=4\",\n  \"company\": \"Kone et Fils\",\n  \"jobPosition\": \"Ingenieure logiciel\",\n  \"mobile\": \"+225 07 12 34 56 78\",\n  \"username\": \"awa.traore.k93x\",\n  \"email\": \"awa.traore@example.com\",\n  \"role\": \"user\",\n  \"createdAt\": \"2026-07-13T10:15:00.000Z\"\n}"
+            },
+            {
+              "name": "401 Unauthorized",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "me"]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"message\": \"Authentification requise : en-tete Authorization manquant ou invalide\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Consulter le profil d'un utilisateur",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/:username",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", ":username"],
+              "variable": [
+                {
+                  "key": "username",
+                  "value": "awa.traore.k93x",
+                  "description": "Username du profil a consulter"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "description": "Retourne le profil de l'utilisateur identifie par son username dans l'URL.\n\nAuthentification requise : Oui (Bearer token)\nEn-tete : Authorization: Bearer {{accessToken}}\n\nParametre de chemin (path param) :\n- username (string, requis) : username de l'utilisateur a consulter\n\nRegles d'autorisation :\n- un utilisateur avec le role 'admin' peut consulter n'importe quel profil\n- un utilisateur avec le role 'user' ne peut consulter que son propre profil\n\nFormat de reponse (200) : identique a /api/users/me\n\nErreurs possibles :\n- 401 : non authentifie\n- 403 : utilisateur standard tentant de consulter le profil d'un autre utilisateur\n- 404 : aucun utilisateur ne correspond a ce username"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/awa.traore.k93x",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "awa.traore.k93x"]
+                },
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }]
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"id\": \"3fa1f1c0-1c9a-4e2f-9b21-2a3e0f6a9b12\",\n  \"firstName\": \"Awa\",\n  \"lastName\": \"Traore\",\n  \"birthDate\": \"1992-03-14T00:00:00.000Z\",\n  \"city\": \"Bouake\",\n  \"country\": \"CI\",\n  \"avatar\": \"https://avatars.githubusercontent.com/u/91231?v=4\",\n  \"company\": \"Kone et Fils\",\n  \"jobPosition\": \"Ingenieure logiciel\",\n  \"mobile\": \"+225 07 12 34 56 78\",\n  \"username\": \"awa.traore.k93x\",\n  \"email\": \"awa.traore@example.com\",\n  \"role\": \"user\",\n  \"createdAt\": \"2026-07-13T10:15:00.000Z\"\n}"
+            },
+            {
+              "name": "403 Forbidden - acces refuse",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/ismael.diabate.p7q2",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "ismael.diabate.p7q2"]
+                },
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }]
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"message\": \"Vous n'etes pas autorise a consulter ce profil\"\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/users/utilisateur-inconnu",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "users", "utilisateur-inconnu"]
+                },
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }]
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"message\": \"Utilisateur non trouve\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Endpoints relatifs a la generation, l'import et la consultation des utilisateurs."
+    },
+    {
+      "name": "Authentification",
+      "item": [
+        {
+          "name": "Authentification (login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Statut 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Un accessToken est retourne\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('accessToken');",
+                  "    pm.expect(body.accessToken).to.be.a('string');",
+                  "    // Le token est automatiquement enregistre pour les requetes suivantes",
+                  "    pm.collectionVariables.set(\"accessToken\", body.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"awa.traore.k93x\",\n  \"password\": \"Xk92mQ1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth"]
+            },
+            "description": "Authentifie un utilisateur et retourne un token JWT.\n\nAuthentification requise : Non\n\nContent-Type : application/json\n\nCorps de la requete (JSON) :\n{\n  \"username\": \"string (accepte le username OU l'email)\",\n  \"password\": \"string\"\n}\n\nFormat de reponse (200) :\n{\n  \"accessToken\": \"string (JWT)\"\n}\n\nLe token JWT contient : l'identifiant (sub), l'email, le username et le role de l'utilisateur.\nA utiliser ensuite dans l'en-tete : Authorization: Bearer <accessToken>\n\nErreurs possibles :\n- 400 : corps de requete invalide (champs manquants)\n- 401 : username/email ou mot de passe incorrect"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"awa.traore.k93x\",\n  \"password\": \"Xk92mQ1\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzZmExZjFjMC0xYzlhLTRlMmYtOWIyMS0yYTNlMGY2YTliMTIiLCJlbWFpbCI6ImF3YS50cmFvcmVAZXhhbXBsZS5jb20iLCJ1c2VybmFtZSI6ImF3YS50cmFvcmUuazkzeCIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzUyNDA4MDAwLCJleHAiOjE3NTI0OTQ0MDB9.dummysignature\"\n}"
+            },
+            {
+              "name": "401 Unauthorized - identifiants invalides",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"awa.traore.k93x\",\n  \"password\": \"mauvais-mot-de-passe\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth"]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"message\": \"Identifiants invalides\"\n}"
+            },
+            {
+              "name": "400 Bad Request - corps invalide",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"message\": \"Le champ username (ou email) est requis; Le mot de passe est requis\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Authentification avec email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"awa.traore@example.com\",\n  \"password\": \"Xk92mQ1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth"]
+            },
+            "description": "Exemple d'authentification en utilisant l'email a la place du username dans le champ 'username'. Le comportement et le format de reponse sont identiques a la requete Authentification (login)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoint d'authentification (connexion et generation du token JWT)."
+    }
+  ]
+}
